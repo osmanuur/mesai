@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mesai Takip</title>
+
+<link rel="manifest" href="manifest.json">
+
+<style>
+body{
+  margin:0;
+  font-family: Arial, Helvetica, sans-serif;
+  background:#f2f4f6;
+}
+.app{
+  max-width:420px;
+  margin:20px auto;
+  background:#fff;
+  padding:16px;
+  border-radius:14px;
+  box-shadow:0 6px 18px rgba(0,0,0,.12);
+}
+h2{text-align:center;margin:0 0 10px}
+.totals{
+  display:flex;
+  justify-content:center;
+  gap:20px;
+  font-weight:bold;
+  margin-bottom:10px;
+}
+.card{
+  background:#f7f9fb;
+  padding:8px 14px;
+  border-radius:10px;
+}
+label{font-weight:bold;margin-top:10px;display:block;}
+input,button{
+  width:100%;
+  padding:10px;
+  margin-top:6px;
+  border-radius:10px;
+  border:1px solid #ccc;
+  font-size:15px;
+}
+.row{display:flex;gap:10px;}
+.row button{flex:1;}
+button{
+  background:#1976d2;
+  color:white;
+  border:none;
+}
+button.alt{background:#388e3c}
+button.red{background:#d32f2f}
+.rate{display:flex;gap:10px;margin-top:6px}
+.rate button{flex:1}
+table{
+  width:100%;
+  margin-top:12px;
+  border-collapse:collapse;
+  font-size:14px;
+}
+th,td{
+  padding:8px;
+  border-bottom:1px solid #ddd;
+  text-align:center;
+}
+.actions button{
+  padding:5px 8px;
+  font-size:13px;
+}
+.export{display:flex;gap:10px;margin-top:10px}
+</style>
+</head>
+
+<body>
+<div class="app">
+<h2>Mesai Takip</h2>
+
+<div class="totals">
+  <div class="card">1/1: <span id="t11">0.00</span> saat</div>
+  <div class="card">1/5: <span id="t15">0.00</span> saat</div>
+</div>
+
+<label>Tarih</label>
+<input type="date" id="date">
+
+<label>Saat Aralığı</label>
+<div class="row">
+  <input type="time" id="start">
+  <input type="time" id="end">
+</div>
+
+<label>Oran</label>
+<div class="rate">
+  <button onclick="setRate(1)">1/1</button>
+  <button onclick="setRate(0.2)">1/5</button>
+</div>
+
+<button class="alt" onclick="save()">Kaydet</button>
+
+<table>
+<thead>
+<tr><th>Tarih</th><th>Saat</th><th>Oran</th><th>İşlem</th></tr>
+</thead>
+<tbody id="list"></tbody>
+</table>
+
+<div class="export">
+<button onclick="exportExcel()">Excel</button>
+<button onclick="exportPDF()">PDF</button>
+</div>
+</div>
+
+<script>
+let rate=null;
+let data=JSON.parse(localStorage.getItem("mesai")||"[]");
+
+function setRate(r){
+  rate=r;
+}
+
+function calcHours(s,e){
+ let a=s.split(":"),b=e.split(":");
+ return ((b[0]*60+b[1])-(a[0]*60+a[1]))/60;
+}
+
+function save(){
+ if(!rate) return alert("Oran seç");
+ if(!date.value||!start.value||!end.value) return alert("Eksik bilgi");
+ let h=calcHours(start.value,end.value);
+ data.push({d:date.value,h,rate});
+ localStorage.setItem("mesai",JSON.stringify(data));
+ render();
+}
+
+function del(i){
+ data.splice(i,1);
+ localStorage.setItem("mesai",JSON.stringify(data));
+ render();
+}
+
+function render(){
+ let s11=0,s15=0;
+ list.innerHTML="";
+ data.forEach((x,i)=>{
+  let sh=x.h*x.rate;
+  x.rate==1?s11+=sh:s15+=sh;
+  list.innerHTML+=`
+  <tr>
+    <td>${x.d}</td>
+    <td>${x.h.toFixed(2)}</td>
+    <td>${x.rate==1?"1/1":"1/5"}</td>
+    <td class="actions"><button class="red" onclick="del(${i})">Sil</button></td>
+  </tr>`;
+ });
+ t11.textContent=s11.toFixed(2);
+ t15.textContent=s15.toFixed(2);
+}
+render();
+
+function exportExcel(){
+ let csv="Tarih,Saat,Oran\n";
+ data.forEach(x=>csv+=`${x.d},${x.h},${x.rate}\n`);
+ let a=document.createElement("a");
+ a.href="data:text/csv;charset=utf-8,"+encodeURI(csv);
+ a.download="mesai.csv";
+ a.click();
+}
+
+function exportPDF(){window.print();}
+
+if("serviceWorker" in navigator){
+ navigator.serviceWorker.register("sw.js");
+}
+</script>
+</body>
+</html>
